@@ -4,7 +4,7 @@ Set-Location $root
 
 cmake --preset release
 cmake --build --preset release --parallel
-ctest --preset debug --output-on-failure
+ctest --test-dir build/release --output-on-failure
 
 $out = Join-Path $root 'out/demo'
 if (Test-Path -LiteralPath $out) { Remove-Item -LiteralPath $out -Recurse -Force }

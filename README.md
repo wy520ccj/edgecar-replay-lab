@@ -15,7 +15,7 @@ This is a software-in-the-loop lab, not a claim of road-ready autonomy. The desi
 ```bash
 cmake --preset release
 cmake --build --preset release
-ctest --preset debug --output-on-failure
+ctest --test-dir build/release --output-on-failure
 ./build/release/bin/edgecar-replay --scenario scenarios/07_stale_timestamp.yaml --output out/stale
 ./build/release/bin/edgecar-report --telemetry out/stale/telemetry.v1.jsonl --output out/stale/index.html
 ```

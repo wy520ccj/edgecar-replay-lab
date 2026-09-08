@@ -4,7 +4,7 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 cmake --preset release
 cmake --build --preset release --parallel
-ctest --preset debug --output-on-failure
+ctest --test-dir build/release --output-on-failure
 rm -rf out/demo
 mkdir -p out/demo
 for scenario in scenarios/*.yaml; do
