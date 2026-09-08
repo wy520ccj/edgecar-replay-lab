@@ -4,6 +4,8 @@ Deterministic replay and safety validation for resource-constrained autonomous v
 
 ![C++17](https://img.shields.io/badge/C%2B%2B-17-blue) ![License](https://img.shields.io/badge/license-Apache--2.0-green)
 
+[Live replay report](https://wy520ccj.github.io/edgecar-replay-lab/)
+
 EdgeCar Replay Lab is a small, hardware-independent C++17 reference stack for testing the part of an autonomous-car pipeline that is easiest to get wrong: what happens when perception is late, missing, stale, or unreasonable. It runs the same deterministic scenario repeatedly, injects faults, clamps actuator commands, and produces machine-readable telemetry plus an HTML report.
 
 ## Why this project
