@@ -1,0 +1,8 @@
+id: consecutive_drop
+seed: 105
+frames: 90
+profile: curve
+faults:
+  - type: drop_frame
+    frame: 30
+    duration: 3

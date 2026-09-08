@@ -1,0 +1,9 @@
+id: stale_timestamp
+seed: 107
+frames: 90
+profile: straight
+faults:
+  - type: delay
+    frame: 35
+    duration: 1
+    value: 250

@@ -1,0 +1,9 @@
+id: steering_spike
+seed: 111
+frames: 90
+profile: curve
+faults:
+  - type: steering_spike
+    frame: 35
+    duration: 1
+    value: 3.0

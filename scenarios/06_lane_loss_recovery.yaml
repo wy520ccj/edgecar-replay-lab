@@ -1,0 +1,8 @@
+id: lane_loss_recovery
+seed: 106
+frames: 120
+profile: s_curve
+faults:
+  - type: lane_loss
+    frame: 45
+    duration: 2

@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - name: Configure
+        run: cmake --preset ci
+      - name: Build
+        run: cmake --build --preset ci --parallel
+      - name: Test
+        run: ctest --preset ci --output-on-failure
+      - name: Demo scenarios
+        shell: bash
+        run: |
+          for scenario in scenarios/*.yaml; do
+            name=$(basename "$scenario" .yaml)
+            build/ci/bin/edgecar-replay --scenario "$scenario" --output "out/$name"
+          done
+  arm64-compile:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ARM64 compiler
+        run: sudo apt-get update && sudo apt-get install -y g++-aarch64-linux-gnu
+      - name: Compile core for ARM64
+        run: |
+          aarch64-linux-gnu-g++ -std=c++17 -Wall -Wextra -Wpedantic -Iinclude \
+            -c src/types.cpp src/scenario.cpp src/safety.cpp src/telemetry.cpp src/pipeline.cpp

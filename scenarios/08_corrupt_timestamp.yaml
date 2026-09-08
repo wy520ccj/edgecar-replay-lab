@@ -1,0 +1,8 @@
+id: corrupt_timestamp
+seed: 108
+frames: 90
+profile: straight
+faults:
+  - type: corrupt_timestamp
+    frame: 35
+    duration: 1
