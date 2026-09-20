@@ -13,7 +13,7 @@ This document records the first hardening increment after the v0.1.0 prototype. 
 - Scenario seeds now affect synthetic traces while preserving deterministic replay for the same seed.
 - Telemetry reading supports scientific notation, validates required values and booleans, rejects malformed lines and unknown safety states, and keeps optional brake/terminal fields backward-compatible.
 - `NullActuator` is now a concrete no-op sink and the replay path calls the recording sink for every approved command.
-- The test executable contains 15 named checks covering safety boundaries, parsing, determinism, terminal output, and report round trips.
+- The test executable contains 17 named checks covering safety boundaries, parsing, determinism, terminal output, published scenarios, and report round trips.
 
 ## Verification run
 
