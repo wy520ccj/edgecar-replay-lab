@@ -2,7 +2,7 @@
 
 ## Runtime pipeline
 
-`IFrameSource` emits a timestamped `Frame`. `IPerceptionBackend` converts it into a health-aware `PerceptionResult`; `IPlanner` proposes a `ControlCommand`; `ISafetySupervisor` is the only component allowed to approve the command; `IActuatorSink` receives the final command. The replay application records every boundary into `telemetry.v1.jsonl`.
+`IFrameSource` emits a timestamped `Frame`. `IPerceptionBackend` converts it into a health-aware `PerceptionResult`; `IPlanner` proposes a `ControlCommand`; `ISafetySupervisor` is the only component allowed to approve the command; `IActuatorSink` receives the final command. The replay application records every boundary into `telemetry.v1.jsonl` and appends a terminal zero-speed/brake record.
 
 The core deliberately has no camera, serial, OpenCV, Paddle, ROS, or vendor SDK dependency. Those belong in optional adapters. A missing adapter is an explicit error, never a silent fallback to vehicle actuation.
 
@@ -14,6 +14,8 @@ The core deliberately has no camera, serial, OpenCV, Paddle, ROS, or vendor SDK 
 4. Every speed and steering command is clamped to a configured envelope.
 5. Steering slew is limited between consecutive cycles.
 6. `LATCHED_STOP` emits zero speed until `reset()` is called by an explicit owner.
+7. Non-finite commands/results and repeated or backward timestamps are hard faults.
+8. An explicit brake request has priority over motion and is preserved in telemetry.
 
 ## Extension points
 

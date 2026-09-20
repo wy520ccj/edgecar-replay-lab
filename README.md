@@ -43,7 +43,9 @@ The core contracts live in `include/edgecar/`. Optional image/model adapters can
 - `SAFE_STOP`: repeated missing observations; command is zero speed with braking requested.
 - `LATCHED_STOP`: stale timestamps or backend failure; motion stays disabled until an explicit reset.
 
-The default actuator is `NullActuator`; replay never opens a serial port or drives a motor.
+The default actuator is `NullActuator`; replay never opens a serial port or drives a motor. Every replay ends with a terminal zero-speed/brake record.
+
+`telemetry.v1.jsonl` accepts scientific-notation numbers, validates required fields, preserves brake intent, and rejects malformed records. Older v1 records without the optional brake/terminal fields remain readable.
 
 ## Evidence and limits
 
@@ -54,6 +56,7 @@ The repository's metrics are generated from synthetic, deterministic scenarios a
 - [中文说明](README.zh-CN.md)
 - [Architecture and data contracts](docs/architecture.md)
 - [Reproducible evaluation](docs/evaluation.md)
+- [Week 1 hardening status](docs/week1-status.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 

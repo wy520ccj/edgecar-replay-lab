@@ -2,6 +2,8 @@
 
 #include "edgecar/interfaces.hpp"
 
+#include <optional>
+
 namespace edgecar {
 
 struct SafetyLimits {
@@ -12,6 +14,9 @@ struct SafetyLimits {
   std::int64_t max_frame_age_ms{120};
   std::size_t miss_to_degraded{1};
   std::size_t miss_to_stop{3};
+  std::int64_t max_future_frame_ms{20};
+
+  void validate() const;
 };
 
 class SafetySupervisor final : public ISafetySupervisor {
@@ -29,6 +34,7 @@ class SafetySupervisor final : public ISafetySupervisor {
   SafetyState state_{SafetyState::Normal};
   std::size_t consecutive_misses_{0};
   double last_steering_{0.0};
+  std::optional<std::int64_t> last_frame_timestamp_ms_;
 };
 
 class RecordingActuator final : public IActuatorSink {
@@ -38,6 +44,11 @@ class RecordingActuator final : public IActuatorSink {
 
  private:
   ControlCommand last_command_{};
+};
+
+class NullActuator final : public IActuatorSink {
+ public:
+  void send(const ControlCommand&) override {}
 };
 
 }  // namespace edgecar

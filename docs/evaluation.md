@@ -4,11 +4,13 @@ The 12 scenarios cover nominal motion, curved motion, short and repeated frame l
 
 Each run writes:
 
-- `telemetry.v1.jsonl`: one record per deterministic cycle;
+- `telemetry.v1.jsonl`: one record per deterministic cycle plus a `terminal: true` zero-speed/brake record;
 - `summary.json`: frame count, degraded frames, safe-stop frames and clamped frames;
 - `index.html`: a human-readable report generated from telemetry only.
 
-The benchmark reports p50, p95 and maximum mock-perception latency. It is a regression signal, not a claim about a particular board. ARM64 CI proves compilation portability; only a separately recorded board run may claim board performance.
+The benchmark reports p50, p95 and maximum mock-perception latency. It is a regression signal, not a claim about a particular board. The mock backend latency is synthetic and must not be described as model inference. ARM64 CI proves compilation portability; only a separately recorded board run may claim board performance.
+
+The reader rejects malformed JSONL, missing required fields, invalid booleans, unknown safety states and non-finite numeric values. Optional brake and terminal fields keep older v1 records readable.
 
 ## Adding a scenario
 

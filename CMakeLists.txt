@@ -44,4 +44,6 @@ if(EDGECAR_BUILD_TESTS)
     add_executable(edgecar-tests tests/test_edgecar.cpp)
     target_link_libraries(edgecar-tests PRIVATE edgecar_core)
     add_test(NAME edgecar_unit_and_scenarios COMMAND edgecar-tests)
+    set_tests_properties(edgecar_unit_and_scenarios PROPERTIES
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 endif()

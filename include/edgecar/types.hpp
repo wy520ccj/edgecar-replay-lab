@@ -92,11 +92,14 @@ struct TelemetryRecord {
   double lateral_error{0.0};
   double requested_speed_mps{0.0};
   double requested_steering_norm{0.0};
+  bool requested_brake{false};
   double applied_speed_mps{0.0};
   double applied_steering_norm{0.0};
+  bool applied_brake{false};
   double perception_latency_ms{0.0};
   SafetyState safety_state{SafetyState::Normal};
   std::string safety_reason{"normal"};
+  bool terminal{false};
 };
 
 std::string to_string(Health value);

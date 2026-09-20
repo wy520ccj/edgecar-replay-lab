@@ -2,15 +2,54 @@
 
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 
 namespace edgecar {
 
-SafetySupervisor::SafetySupervisor(SafetyLimits limits) : limits_(limits) {}
+namespace {
+
+bool finite(double value) { return std::isfinite(value); }
+
+bool finite(const ControlCommand& command) {
+  return finite(command.speed_mps) && finite(command.steering_norm);
+}
+
+bool finite(const PerceptionResult& perception) {
+  return finite(perception.latency_ms) && finite(perception.lane.lateral_error) &&
+         finite(perception.lane.heading_error) && finite(perception.lane.confidence);
+}
+
+SafetyDecision stop_decision(SafetyState state, const std::string& reason,
+                             double steering) {
+  SafetyDecision decision;
+  decision.state = state;
+  decision.reason = reason;
+  decision.command = ControlCommand{0.0, steering, true, reason};
+  return decision;
+}
+
+}  // namespace
+
+void SafetyLimits::validate() const {
+  if (!finite(max_speed_mps) || max_speed_mps < 0.0) throw std::invalid_argument("max_speed_mps must be finite and non-negative");
+  if (!finite(degraded_speed_mps) || degraded_speed_mps < 0.0 || degraded_speed_mps > max_speed_mps)
+    throw std::invalid_argument("degraded_speed_mps must be within the speed envelope");
+  if (!finite(max_abs_steering) || max_abs_steering < 0.0) throw std::invalid_argument("max_abs_steering must be finite and non-negative");
+  if (!finite(max_steering_delta) || max_steering_delta < 0.0) throw std::invalid_argument("max_steering_delta must be finite and non-negative");
+  if (max_frame_age_ms < 0 || max_future_frame_ms < 0) throw std::invalid_argument("frame age limits must be non-negative");
+  if (miss_to_degraded == 0 || miss_to_stop == 0 || miss_to_degraded > miss_to_stop)
+    throw std::invalid_argument("miss thresholds must be positive and ordered");
+}
+
+SafetySupervisor::SafetySupervisor(SafetyLimits limits) : limits_(limits) {
+  limits_.validate();
+}
 
 void SafetySupervisor::reset() {
   state_ = SafetyState::Normal;
   consecutive_misses_ = 0;
   last_steering_ = 0.0;
+  last_frame_timestamp_ms_.reset();
 }
 
 SafetyDecision SafetySupervisor::filter(const Frame& frame,
@@ -18,22 +57,25 @@ SafetyDecision SafetySupervisor::filter(const Frame& frame,
                                         const ControlCommand& requested,
                                         std::int64_t cycle_time_ms) {
   SafetyDecision decision;
-  decision.command = requested;
+  if (!finite(requested) || !finite(perception)) {
+    state_ = SafetyState::LatchedStop;
+    return stop_decision(state_, "non_finite_input", last_steering_);
+  }
   if (state_ == SafetyState::LatchedStop) {
-    decision.state = state_;
-    decision.reason = "latched_stop_requires_reset";
-    decision.command = ControlCommand{0.0, 0.0, true, decision.reason};
-    return decision;
+    return stop_decision(state_, "latched_stop_requires_reset", last_steering_);
   }
 
   const auto age = cycle_time_ms - frame.timestamp_ms;
-  if (age > limits_.max_frame_age_ms || age < -20) {
+  const bool repeated_or_backward = last_frame_timestamp_ms_.has_value() &&
+                                    frame.timestamp_ms <= *last_frame_timestamp_ms_;
+  if (age > limits_.max_frame_age_ms || age < -limits_.max_future_frame_ms ||
+      repeated_or_backward) {
     state_ = SafetyState::LatchedStop;
-    decision.state = state_;
-    decision.reason = "frame_timestamp_invalid_or_stale";
-    decision.command = ControlCommand{0.0, 0.0, true, decision.reason};
-    return decision;
+    return stop_decision(state_, repeated_or_backward ? "frame_timestamp_repeated_or_backward"
+                                                      : "frame_timestamp_invalid_or_stale",
+                         last_steering_);
   }
+  last_frame_timestamp_ms_ = frame.timestamp_ms;
 
   const bool miss = !frame.valid || !perception.lane.valid;
   if (miss) {
@@ -43,17 +85,19 @@ SafetyDecision SafetySupervisor::filter(const Frame& frame,
   }
   if (perception.health == Health::Failed) {
     state_ = SafetyState::LatchedStop;
-    decision.state = state_;
-    decision.reason = "perception_backend_failed";
-    decision.command = ControlCommand{0.0, 0.0, true, decision.reason};
-    return decision;
+    return stop_decision(state_, "perception_backend_failed", last_steering_);
   }
   if (consecutive_misses_ >= limits_.miss_to_stop) {
     state_ = SafetyState::SafeStop;
-    decision.state = state_;
-    decision.reason = "consecutive_perception_misses";
-    decision.command = ControlCommand{0.0, 0.0, true, decision.reason};
-    last_steering_ = 0.0;
+    return stop_decision(state_, "consecutive_perception_misses", last_steering_);
+  }
+
+  if (requested.brake) {
+    decision.state = perception.health == Health::Degraded || consecutive_misses_ >= limits_.miss_to_degraded
+                        ? SafetyState::Degraded : SafetyState::Normal;
+    state_ = decision.state;
+    decision.reason = "brake_requested";
+    decision.command = ControlCommand{0.0, last_steering_, true, decision.reason};
     return decision;
   }
 

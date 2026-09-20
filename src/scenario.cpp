@@ -18,7 +18,11 @@ std::string trim(std::string value) {
 
 std::size_t as_size(const std::string& value, const std::string& key) {
   try {
-    return static_cast<std::size_t>(std::stoull(value));
+    if (value.empty() || value.front() == '-') throw std::invalid_argument("negative");
+    std::size_t consumed = 0;
+    const auto parsed = std::stoull(value, &consumed);
+    if (consumed != value.size()) throw std::invalid_argument("trailing characters");
+    return static_cast<std::size_t>(parsed);
   } catch (...) {
     throw std::invalid_argument("invalid " + key + ": " + value);
   }
@@ -26,10 +30,22 @@ std::size_t as_size(const std::string& value, const std::string& key) {
 
 double as_double(const std::string& value, const std::string& key) {
   try {
-    return std::stod(value);
+    std::size_t consumed = 0;
+    const auto parsed = std::stod(value, &consumed);
+    if (consumed != value.size() || !std::isfinite(parsed)) throw std::invalid_argument("invalid number");
+    return parsed;
   } catch (...) {
     throw std::invalid_argument("invalid " + key + ": " + value);
   }
+}
+
+bool known_scenario_key(const std::string& key) {
+  return key == "id" || key == "seed" || key == "frames" || key == "profile" || key == "faults";
+}
+
+bool known_fault_key(const std::string& key) {
+  return key == "type" || key == "frame" || key == "start_frame" ||
+         key == "duration" || key == "duration_frames" || key == "value";
 }
 
 }  // namespace
@@ -62,8 +78,7 @@ Scenario load_scenario(const std::string& path) {
     if (colon == std::string::npos) continue;
     const auto key = trim(line.substr(0, colon));
     const auto value = trim(line.substr(colon + 1));
-    if (in_fault && (raw.rfind("- ", 0) == 0 || key == "type" || key == "frame" ||
-                     key == "start_frame" || key == "duration" || key == "value")) {
+    if (in_fault && (raw.rfind("- ", 0) == 0 || known_fault_key(key))) {
       if (key == "type") {
         current.type = fault_type_from_string(value);
         has_type = true;
@@ -73,6 +88,8 @@ Scenario load_scenario(const std::string& path) {
         current.duration_frames = std::max<std::size_t>(1, as_size(value, key));
       } else if (key == "value") {
         current.value = as_double(value, key);
+      } else {
+        throw std::invalid_argument("invalid fault key: " + key);
       }
       continue;
     }
@@ -81,10 +98,24 @@ Scenario load_scenario(const std::string& path) {
     else if (key == "seed") scenario.seed = static_cast<std::uint32_t>(as_size(value, key));
     else if (key == "frames") scenario.frames = as_size(value, key);
     else if (key == "profile") scenario.profile = value;
+    else if (key == "faults") continue;
+    else if (!known_scenario_key(key)) throw std::invalid_argument("invalid scenario key: " + key);
   }
   if (in_fault && has_type) scenario.faults.push_back(current);
-  if (scenario.frames == 0) throw std::invalid_argument("scenario frames must be positive");
+  validate_scenario(scenario);
   return scenario;
+}
+
+void validate_scenario(const Scenario& scenario) {
+  if (scenario.id.empty()) throw std::invalid_argument("scenario id must not be empty");
+  if (scenario.frames == 0) throw std::invalid_argument("scenario frames must be positive");
+  if (scenario.profile != "straight" && scenario.profile != "curve" && scenario.profile != "s_curve")
+    throw std::invalid_argument("unsupported scenario profile: " + scenario.profile);
+  for (const auto& fault : scenario.faults) {
+    if (fault.duration_frames == 0) throw std::invalid_argument("fault duration must be positive");
+    if (fault.start_frame >= scenario.frames) throw std::invalid_argument("fault starts after scenario end");
+    if (!std::isfinite(fault.value)) throw std::invalid_argument("fault value must be finite");
+  }
 }
 
 bool fault_active(const Scenario& scenario, FaultType type, std::size_t frame) {
@@ -113,7 +144,8 @@ std::optional<Frame> SyntheticFrameSource::next() {
   if (next_frame_ >= scenario_.frames) return std::nullopt;
   const auto index = next_frame_++;
   constexpr double pi = 3.14159265358979323846;
-  const double phase = static_cast<double>(index) / 30.0;
+  const double seed_offset = static_cast<double>(scenario_.seed % 1000U) / 1000.0;
+  const double phase = (static_cast<double>(index) + seed_offset) / 30.0;
   Frame frame;
   frame.sequence = index;
   frame.timestamp_ms = static_cast<std::int64_t>(index * 33U);

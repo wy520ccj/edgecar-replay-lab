@@ -7,6 +7,7 @@
 namespace edgecar {
 
 Scenario load_scenario(const std::string& path);
+void validate_scenario(const Scenario& scenario);
 bool fault_active(const Scenario& scenario, FaultType type, std::size_t frame);
 double fault_value(const Scenario& scenario, FaultType type, std::size_t frame,
                    double fallback = 0.0);
